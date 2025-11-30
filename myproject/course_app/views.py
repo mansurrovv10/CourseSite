@@ -1,16 +1,21 @@
 from .models import (UserProfile,Category,SubCategory,Course,Lesson,
-                     Assignment,Exam,Question,Option,Certificate,Review)
-from .serializers import (UserProfileSerializer, CategoryListSerializer, CategoryDetailSerializer,
+                     Assignment,Exam,Review)
+from .serializers import (CategoryListSerializer, CategoryDetailSerializer,
                           SubCategoryListSerializer, SubCategoryDetailSerializer, LessonSerializer,
                           CourseListSerializer, CourseDetailSerializer, AssignmentListSerializer,
                           AssignmentDetailSerializer, ExamListSerializer, ExamDetailSerializer,
-                          QuestionSerializer, OptionSerializer, CertificateSerializer, ReviewSerializer,
-                          ExamSerializer,UserProfileRegisterSerializer,UserProfileLoginSerializer)
-from rest_framework import viewsets,generics,status
+                          ExamCreateSerializer,UserProfileRegisterSerializer,UserProfileLoginSerializer,
+                          CourseCreateSerializer,ReviewCreateSerializer,UserProfileListSerializer,
+                          UserProfileDetailSerializer)
+from rest_framework import viewsets,generics,status,permissions
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import CourseFilter
+from rest_framework.filters import SearchFilter,OrderingFilter
+from .pagination import CoursePagination
+from .permissions import CreateCoursePermission,CreateExamPermission,CheckPermission
 
 
 
@@ -49,9 +54,23 @@ class LogoutView(generics.GenericAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserProfileViewSet(viewsets.ModelViewSet):
+
+
+class UserProfileListAPIView(generics.ListAPIView):
     queryset = UserProfile.objects.all()
-    serializer_class = UserProfileSerializer
+    serializer_class = UserProfileListSerializer
+    def get_queryset(self):
+        return UserProfile.objects.filter(id=self.request.user.id)
+
+
+
+class UserProfileDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileDetailSerializer
+    def get_queryset(self):
+        return UserProfile.objects.filter(id=self.request.user.id)
+
+
 
 
 class CategoryListAPIView(generics.ListAPIView):
@@ -77,7 +96,6 @@ class SubCategoryDetailAPIView(generics.RetrieveAPIView):
 
 
 
-
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -88,7 +106,11 @@ class LessonViewSet(viewsets.ModelViewSet):
 class CourseListAPIView(generics.ListAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseListSerializer
-
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    filterset_class = CourseFilter
+    search_fields = ['title']
+    ordering_fields = ['price']
+    pagination_class = CoursePagination
 
 
 class CourseDetailAPIView(generics.RetrieveAPIView):
@@ -96,12 +118,19 @@ class CourseDetailAPIView(generics.RetrieveAPIView):
     serializer_class = CourseDetailSerializer
 
 
+class CourseCreateViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseCreateSerializer
+    permission_classes = [CreateCoursePermission]
 
+    def get_queryset(self):
+        return Course.objects.filter(teacher=self.request.user)
 
 
 class AssignmentListAPIView(generics.ListAPIView):
     queryset = Assignment.objects.all()
     serializer_class = AssignmentListSerializer
+
 
 
 class AssignmentDetailAPIView(generics.RetrieveAPIView):
@@ -121,29 +150,30 @@ class ExamDetailAPIView(generics.RetrieveAPIView):
     serializer_class = ExamDetailSerializer
 
 
-class ExamCreateAPIView(generics.CreateAPIView):
+class ExamCreateViewSet(viewsets.ModelViewSet):
     queryset = Exam.objects.all()
-    serializer_class = ExamSerializer
+    serializer_class = ExamCreateSerializer
+    permission_classes = [CreateExamPermission]
 
-
-class QuestionViewSet(viewsets.ModelViewSet):
-    queryset = Question.objects.all()
-    serializer_class = QuestionSerializer
-
-
-
-class OptionViewSet(viewsets.ModelViewSet):
-    queryset = Option.objects.all()
-    serializer_class = OptionSerializer
+    def get_queryset(self):
+        return Course.objects.filter(teacher=self.request.user)
 
 
 
-class CertificateViewSet(viewsets.ModelViewSet):
-    queryset = Certificate.objects.all()
-    serializer_class = CertificateSerializer
-
-
-
-class ReviewViewSet(viewsets.ModelViewSet):
+class ReviewCreateAPIView(generics.CreateAPIView):
     queryset = Review.objects.all()
-    serializer_class = ReviewSerializer
+    serializer_class = ReviewCreateSerializer
+    permission_classes = [CheckPermission]
+
+    def get_queryset(self):
+        return Course.objects.filter(student=self.request.user)
+
+
+class ReviewEditAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewCreateSerializer
+    permission_classes = [CheckPermission]
+
+
+    def get_queryset(self):
+        return Review.objects.filter(student=self.request.user.role)

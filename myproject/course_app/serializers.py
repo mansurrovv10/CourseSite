@@ -9,13 +9,14 @@ from django.contrib.auth import authenticate
 class UserProfileRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'age',
+        fields = ['username', 'email', 'password', 'first_name', 'last_name',
                   'role',]
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
         user = UserProfile.objects.create_user(**validated_data)
         return user
+
 
 
 class UserProfileLoginSerializer(serializers.Serializer):
@@ -38,9 +39,22 @@ class UserProfileLoginSerializer(serializers.Serializer):
             'access': str(refresh.access_token),
             'refresh': str(refresh),
         }
+class UserProfileListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['username', 'email','avatar']
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
+
+class UserProfileDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['username', 'email','avatar','bio','full_name']
+
+
+
+
+class UserProfileReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['role']
@@ -62,9 +76,24 @@ class SubCategoryListSerializer(serializers.ModelSerializer):
 
 
 class   CourseListSerializer(serializers.ModelSerializer):
+    avg_rating = serializers.SerializerMethodField()
+    count_people = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
-        fields = ['id','course_name','price','course_image','description']
+        fields = ['id','course_name','price','course_image','description','avg_rating','count_people']
+
+    def get_avg_rating(self, obj):
+        return obj.get_avg_rating()
+
+    def get_count_people(self, obj):
+        return obj.get_count_people()
+
+
+class   CourseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = '__all__'
 
 
 
@@ -136,7 +165,10 @@ class ExamListSerializer(serializers.ModelSerializer):
         model = Exam
         fields = ['id','title','exams_course']
 
-class ExamSerializer(serializers.ModelSerializer):
+
+
+
+class ExamCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = '__all__'
@@ -157,7 +189,7 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
 
 class CertificateSerializer(serializers.ModelSerializer):
-    student = UserProfileSerializer()
+    student = UserProfileListSerializer()
 
     class Meta:
         model = Certificate
@@ -166,12 +198,17 @@ class CertificateSerializer(serializers.ModelSerializer):
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    user = UserProfileSerializer()
+    user = UserProfileReviewSerializer()
     class Meta:
         model = Review
         fields = ['user','rating','comment','created_date']
 
 
+
+class ReviewCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = '__all__'
 
 
 class   CourseDetailSerializer(serializers.ModelSerializer):
@@ -179,19 +216,20 @@ class   CourseDetailSerializer(serializers.ModelSerializer):
     updated_at = serializers.DateTimeField(format='%d-%m-%Y')
     reviews_course = ReviewSerializer(many=True, read_only=True)
     lessons_course = LessonSerializer(many=True, read_only=True)
-    created_by = UserProfileSerializer()
-    get_avg_rating = serializers.SerializerMethodField()
-    get_count_people = serializers.SerializerMethodField()
+    created_by = UserProfileReviewSerializer()
+    avg_rating = serializers.SerializerMethodField()
+    count_people = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = ['course_name','description','level','price','created_at','updated_at','course_image',
-                'lessons_course','created_by','reviews_course','get_avg_rating','get_count_people']
+                'lessons_course','created_by','reviews_course','avg_rating','count_people']
 
     def get_avg_rating(self, obj):
          return obj.get_avg_rating()
 
     def get_count_people(self, obj):
         return obj.get_count_people()
+
 
 
